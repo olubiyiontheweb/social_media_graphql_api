@@ -6,6 +6,31 @@ class User(DjangoObjectType):
     class Meta:
         model = models.User
 
+class UserInput(graphene.InputObjectType):
+    name = graphene.String()
+
+class CreateUser(graphene.Mutation):
+    class Arguments:
+        input = UserInput(required=True)
+
+    ok = graphene.Boolean()
+    user = graphene.Field(User)
+
+    @staticmethod
+    def mutate(root, info, input):
+        instance = models.User(name=input.name)
+
+        try:
+            instance.save()
+        except Exception:
+            return CreateUser(ok=False, user=None)
+
+        # Not good to explicitly state 
+        # that the many to many relationship is empty
+        #instance.followers.set([])
+
+        return CreateUser(ok=True, user=instance)
+
 class Query(graphene.ObjectType):
     #hello = graphene.String(default_value="Hi!")
     user = graphene.Field(User, id=graphene.Int())
@@ -16,5 +41,8 @@ class Query(graphene.ObjectType):
         if id is not None:
             return models.User.objects.get(pk=id)
 
-schema = graphene.Schema(query=Query)
+class Mutation(graphene.ObjectType):
+    create_user = CreateUser.Field()
+
+schema = graphene.Schema(query=Query, mutation=Mutation)
 
